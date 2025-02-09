@@ -1,7 +1,7 @@
 import axios from "axios";
 import SearchSection from "./components/SearchSection";
 import CurrentWeather from "./components/CurrentWeather";
-import HourlyWeatherItem from "./components/HourlyWeatherItem";
+import DailyWeatherItem from "./components/DailyWeatherItem";
 import { weatherCodes } from "./constants";
 import { useEffect, useRef } from "react";
 import NoResultsDiv from "./components/NoResultDiv";
@@ -9,18 +9,28 @@ import { useWeather } from "./context/weatherContext";
 
 const App = () => {
 
-  const { currentWeather, hourlyForecasts, hasNoResults, setHasNoResults, setCurrentWeather, setHourlyForecasts } = useWeather()
+  const { currentWeather, dailyForecasts, hasNoResults, setHasNoResults, setCurrentWeather, setDailyForecasts } = useWeather()
   const searchInputRef = useRef(null);
   const API_KEY = "16b5ef0437db47de88a174522250802";
 
-  const filterHourlyForecast = (hourlyData) => {
-    const currentHour = new Date().setMinutes(0, 0, 0);
-    const next24Hours = currentHour + 24 * 60 * 60 * 1000;
-    const next24HoursData = hourlyData.filter(({ time }) => {
-      const forecastTime = new Date(time).getTime();
-      return forecastTime >= currentHour && forecastTime <= next24Hours;
-    });
-    setHourlyForecasts(next24HoursData); 
+  // const filterHourlyForecast = (hourlyData) => {
+  //   const currentHour = new Date().setMinutes(0, 0, 0);
+  //   const next24Hours = currentHour + 24 * 60 * 60 * 1000;
+  //   const next24HoursData = hourlyData.filter(({ time }) => {
+  //     const forecastTime = new Date(time).getTime();
+  //     return forecastTime >= currentHour && forecastTime <= next24Hours;
+  //   });
+  //   setHourlyForecasts(next24HoursData); 
+  // };
+
+  const filterDailyForecast = (forecastData) => {
+    const next5DaysData = forecastData.map((day) => ({
+      date: day.date,
+      temperature: Math.floor(day.day.avgtemp_c),
+      description: day.day.condition.text,
+      weatherIcon: Object.keys(weatherCodes).find((icon) => weatherCodes[icon].includes(day.day.condition.code)),
+    }));
+    setDailyForecasts(next5DaysData);
   };
 
   const getWeatherDetails = async (API_URL) => {
@@ -33,9 +43,9 @@ const App = () => {
       const description = data.current.condition.text;
       const weatherIcon = Object.keys(weatherCodes).find((icon) => weatherCodes[icon].includes(data.current.condition.code));
       setCurrentWeather({ temperature, description, weatherIcon });
-      const combinedHourlyData = [...data.forecast.forecastday[0].hour, ...data.forecast.forecastday[1].hour];
+      // const combinedHourlyData = [...data.forecast.forecastday[0].hour, ...data.forecast.forecastday[1].hour];
+      filterDailyForecast(data.forecast.forecastday);1
       searchInputRef.current.value = data.location.name;
-      filterHourlyForecast(combinedHourlyData);
     } catch {
       setHasNoResults(true);
     }
@@ -43,7 +53,7 @@ const App = () => {
 
   useEffect(() => {
     const defaultCity = "London";
-    const API_URL = `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${defaultCity}&days=2`;
+    const API_URL = `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${defaultCity}&days=5`;
     getWeatherDetails(API_URL);
   }, []);
 
@@ -57,8 +67,8 @@ const App = () => {
           <CurrentWeather currentWeather={currentWeather} />
           <div className="hourly-forecast">
             <ul className="weather-list">
-              {hourlyForecasts.map((hourlyWeather) => (
-                <HourlyWeatherItem key={hourlyWeather.time_epoch} hourlyWeather={hourlyWeather} />
+              {dailyForecasts.map((itm,index) => (
+                <DailyWeatherItem key={index} dailyWeather={itm} />
               ))}
             </ul>
           </div>
